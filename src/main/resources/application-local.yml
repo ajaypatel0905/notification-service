@@ -1,0 +1,14 @@
+# Zero-setup profile: starts an embedded PostgreSQL and seeds demo tenants/templates.
+notify:
+  local:
+    embedded-postgres: true
+    seed-demo-data: true
+  security:
+    bootstrap-admin-key: local-admin-key
+  providers:
+    simulated:
+      latency-ms: 50
+      transient-failure-rate: 0.10
+logging:
+  level:
+    com.ajaypatel.notify: INFO
