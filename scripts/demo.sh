@@ -13,11 +13,31 @@ jqp() { python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps(d,
 field() { python3 -c "import sys,json; print(json.load(sys.stdin)$1)"; }
 step() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
 
+read -r -d '' PY_TENANTS <<'EOP' || true
+import sys, json
+for t in json.load(sys.stdin):
+    print(f"  {t['slug']:8} {t['status']:9} {t['effectiveRateLimitPerSecond']}/s burst {t['effectiveRateLimitBurst']}")
+EOP
+read -r -d '' PY_TEMPLATES <<'EOP' || true
+import sys, json
+for t in json.load(sys.stdin):
+    print(f"  {t['code']:14} {t['channel']:6} v{t['version']} vars={t['placeholders']}")
+EOP
+read -r -d '' PY_DETAIL <<'EOP' || true
+import sys, json
+d = json.load(sys.stdin); n = d["notification"]
+print(f"  {n['channel']:6} {n['status']:9} attempts={n['attemptCount']} err={n.get('lastError')}")
+for a in d["attempts"]:
+    print(f"      attempt {a['attemptNo']}: {a['outcome']} {a.get('errorCode') or ''} ({a['durationMs']}ms)")
+for e in d["events"]:
+    print(f"      event   {e['type']:16} {e.get('fromStatus') or '-':10} -> {e.get('toStatus') or '-':10} {e.get('detail') or ''}")
+EOP
+
 step "Health"
 curl -sf "$BASE/actuator/health"; echo
 
 step "Platform admin: tenants and global limits"
-curl -sf -H "$ADMIN" "$BASE/api/v1/admin/tenants" | python3 -c 'import sys,json; [print(f"  {t[\"slug\"]:8} {t[\"status\"]:9} {t[\"effectiveRateLimitPerSecond\"]}/s burst {t[\"effectiveRateLimitBurst\"]}") for t in json.load(sys.stdin)]'
+curl -sf -H "$ADMIN" "$BASE/api/v1/admin/tenants" | python3 -c "$PY_TENANTS"
 curl -sf -H "$ADMIN" "$BASE/api/v1/admin/settings" | jqp
 
 step "RBAC: tenant key on an admin route is 403, no key is 401"
@@ -25,7 +45,7 @@ curl -s -o /dev/null -w "  tenant->admin: %{http_code}\n" -H "$ACME" "$BASE/api/
 curl -s -o /dev/null -w "  no key:        %{http_code}\n" "$BASE/api/v1/templates"
 
 step "Templates: placeholders and a strict render preview"
-curl -sf -H "$ACME" "$BASE/api/v1/templates" | python3 -c 'import sys,json; [print(f"  {t[\"code\"]:14} {t[\"channel\"]:6} v{t[\"version\"]} vars={t[\"placeholders\"]}") for t in json.load(sys.stdin)]'
+curl -sf -H "$ACME" "$BASE/api/v1/templates" | python3 -c "$PY_TEMPLATES"
 printf '  missing variable -> '; curl -s -H "$ACME" -H "$J" -X POST "$BASE/api/v1/templates/welcome/EMAIL/render" -d '{"variables":{"company":"Acme"}}' | field '["detail"]'
 
 step "Send a templated email with an idempotency key (202), then repeat it (200, same id)"
@@ -68,11 +88,7 @@ echo "  (globex is still draining at 5/s while acme's 5 went straight through; r
 step "Wait for the earlier sends to settle"
 sleep 3
 for id in $ID_EMAIL $ID_SMS $ID_PUSH $ID_INAPP; do
-  curl -s -H "$ACME" "$BASE/api/v1/notifications/$id" | python3 -c '
-import sys,json; d=json.load(sys.stdin); n=d["notification"]
-print(f"  {n[\"channel\"]:6} {n[\"status\"]:9} attempts={n[\"attemptCount\"]} err={n.get(\"lastError\")}")
-for a in d["attempts"]: print(f"      attempt {a[\"attemptNo\"]}: {a[\"outcome\"]} {a.get(\"errorCode\") or \"\"} ({a[\"durationMs\"]}ms)")
-for e in d["events"]: print(f"      event   {e[\"type\"]:16} {e.get(\"fromStatus\") or \"-\":10} -> {e.get(\"toStatus\") or \"-\":10} {e.get(\"detail\") or \"\"}")'
+  curl -s -H "$ACME" "$BASE/api/v1/notifications/$id" | python3 -c "$PY_DETAIL"
 done
 
 step "In-app inbox for user-42"
