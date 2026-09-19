@@ -3,7 +3,7 @@
 Chosen assignment: Multi-tenant Notification Service (of four options). Rationale in
 `docs/ai-workflow/DECISIONS.md`.
 
-## Milestones
+## Milestones (all complete as of 2026-09-19)
 1. Skeleton: pom, CLAUDE.md, migrations for tenants / api keys / settings.
 2. Security: API-key auth, PLATFORM_ADMIN vs TENANT_ADMIN, tenant scoping.
 3. Tenant admin surface: channel configs, templates (versioned), render preview.

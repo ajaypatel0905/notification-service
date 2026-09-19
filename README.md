@@ -9,7 +9,7 @@ full audit trail. Built as a 48-hour SDE take-home; the brief is in
 - **Stack:** Java 21, Spring Boot 3.5, Spring Data JPA, Spring Security, Flyway, PostgreSQL 16, springdoc OpenAPI.
 - **Zero-setup run:** an embedded PostgreSQL boots inside the JVM for the `local` profile and for tests. No Docker.
 - **Tests:** 17 unit + 68 integration tests on a real PostgreSQL, including concurrency, fairness, rate-limit,
-  retry, lease-recovery and idempotency proofs. `./mvnw test` runs everything in about two minutes.
+  retry, lease-recovery and idempotency proofs. `./mvnw test` runs everything in under a minute once dependencies are cached.
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)      # or any JDK 21 on PATH
