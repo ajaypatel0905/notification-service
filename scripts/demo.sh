@@ -57,9 +57,17 @@ echo "  first : $(printf '%s' "$R1" | tail -n1)  id=$ID_EMAIL"
 echo "  second: $(printf '%s' "$R2" | tail -n1)  id=$(printf '%s' "$R2" | head -n1 | field '["id"]')"
 
 step "Steerable failures: SMS that times out twice, push that hard-bounces, in-app that lands in an inbox"
-ID_SMS=$(curl -s -H "$ACME" -H "$J" -X POST "$BASE/api/v1/notifications" -d '{"channel":"SMS","recipient":"+919999+transient2","templateCode":"otp","variables":{"code":"482913","company":"Acme","minutes":10}}' | field '["id"]')
-ID_PUSH=$(curl -s -H "$ACME" -H "$J" -X POST "$BASE/api/v1/notifications" -d '{"channel":"PUSH","recipient":"device-token+bounce","subject":"Order 42 shipped","body":"Your order is on its way"}' | field '["id"]')
-ID_INAPP=$(curl -s -H "$ACME" -H "$J" -X POST "$BASE/api/v1/notifications" -d '{"channel":"IN_APP","recipient":"user-42","templateCode":"announcement","variables":{"title":"New feature","body":"Dark mode is here"}}' | field '["id"]')
+submit() { # label, key, json -> prints "  label  status  id" and echoes id
+  local label=$1 key=$2 body=$3 out
+  out=$(curl -s -H "$key" -H "$J" -X POST "$BASE/api/v1/notifications" -d "$body")
+  printf '%s' "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"  {'$label':44} {d['status']:9} {d['id']}\"); print(d['id'], file=sys.stderr)" 2>&1 >&3 3>&- | tail -n1
+}
+exec 3>&1
+ID_SMS=$(submit "SMS  +transient2 (times out twice, then sends)" "$ACME" '{"channel":"SMS","recipient":"+919999+transient2","templateCode":"otp","variables":{"code":"482913","company":"Acme","minutes":10}}')
+ID_PUSH=$(submit "PUSH +bounce (permanent failure)" "$ACME" '{"channel":"PUSH","recipient":"device-token+bounce","subject":"Order 42 shipped","body":"Your order is on its way"}')
+ID_INAPP=$(submit "IN_APP announcement (lands in inbox)" "$ACME" '{"channel":"IN_APP","recipient":"user-42","templateCode":"announcement","variables":{"title":"New feature","body":"Dark mode is here"}}')
+exec 3>&-
+echo "  (outcomes shown below once the dispatcher has processed them)"
 
 step "Schedule one for later and cancel it"
 LATER=$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
