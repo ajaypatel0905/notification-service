@@ -101,6 +101,15 @@ public class DeliveryWorker {
         tx.executeWithoutResult(s -> complete(notificationId, prepared, finalOutcome, started));
     }
 
+    /** Hands a leased row back immediately (pool rejected it) instead of waiting for the lease to expire. */
+    public void releaseLease(UUID notificationId, String reason) {
+        tx.executeWithoutResult(s -> notifications.lockById(notificationId).ifPresent(n -> {
+            if (n.getStatus() == NotificationStatus.PROCESSING && worker.id().equals(n.getLeasedBy())) {
+                requeue(n, NotificationEvent.Type.REQUEUED, reason, Duration.ZERO);
+            }
+        }));
+    }
+
     private Outcome invoke(Prepared p) {
         try {
             return new Success(p.provider().send(p.request()));

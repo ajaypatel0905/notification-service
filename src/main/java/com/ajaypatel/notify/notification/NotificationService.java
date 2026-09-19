@@ -17,8 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -46,11 +46,12 @@ public class NotificationService {
     private final ChannelConfigService channelConfigs;
     private final PlatformSettingsService settings;
     private final Clock clock;
+    private final TransactionTemplate tx;
 
     public NotificationService(NotificationRepository notifications, DeliveryAttemptRepository attempts,
                                NotificationEventRepository events, NotificationAuditor auditor,
                                TemplateService templates, ChannelConfigService channelConfigs,
-                               PlatformSettingsService settings, Clock clock) {
+                               PlatformSettingsService settings, Clock clock, TransactionTemplate tx) {
         this.notifications = notifications;
         this.attempts = attempts;
         this.events = events;
@@ -59,15 +60,16 @@ public class NotificationService {
         this.channelConfigs = channelConfigs;
         this.settings = settings;
         this.clock = clock;
+        this.tx = tx;
     }
 
     public record AcceptResult(Notification notification, boolean duplicate) {}
 
     /**
      * Idempotent accept. A repeated idempotency key returns the original notification without creating a
-     * second one; the unique constraint is the backstop for two concurrent first requests.
+     * second one. Two concurrent first requests race on the unique constraint; the loser's transaction is
+     * aborted by PostgreSQL, so the insert runs in its own transaction and the re-read happens after it ends.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AcceptResult accept(UUID tenantId, SendRequest req, String headerIdempotencyKey) {
         String idemKey = firstNonBlank(req.idempotencyKey(), headerIdempotencyKey);
         if (idemKey == null) {
@@ -78,7 +80,18 @@ public class NotificationService {
                 return new AcceptResult(existing.get(), true);
             }
         }
+        try {
+            String key = idemKey;
+            return new AcceptResult(tx.execute(status -> insert(tenantId, req, key)), false);
+        } catch (DataIntegrityViolationException e) {
+            String key = idemKey;
+            Notification winner = notifications.findByTenantIdAndIdempotencyKey(tenantId, key)
+                    .orElseThrow(() -> e);
+            return new AcceptResult(winner, true);
+        }
+    }
 
+    private Notification insert(UUID tenantId, SendRequest req, String idemKey) {
         ChannelConfig config = channelConfigs.find(tenantId, req.channel())
                 .orElseThrow(() -> new ValidationException("Channel " + req.channel() + " is not configured for this tenant"));
         if (!config.isEnabled()) {
@@ -113,17 +126,11 @@ public class NotificationService {
             n.setNextAttemptAt(now);
         }
 
-        try {
-            notifications.saveAndFlush(n);
-        } catch (DataIntegrityViolationException e) {
-            Notification winner = notifications.findByTenantIdAndIdempotencyKey(tenantId, idemKey)
-                    .orElseThrow(() -> e);
-            return new AcceptResult(winner, true);
-        }
+        notifications.saveAndFlush(n);
         auditor.record(n, n.getStatus() == NotificationStatus.SCHEDULED
                 ? NotificationEvent.Type.SCHEDULED : NotificationEvent.Type.ACCEPTED, null, n.getStatus(), "api",
                 n.getStatus() == NotificationStatus.SCHEDULED ? "scheduled for " + n.getScheduledAt() : null);
-        return new AcceptResult(n, false);
+        return n;
     }
 
     private void applyContent(UUID tenantId, SendRequest req, Notification n) {

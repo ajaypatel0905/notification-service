@@ -22,6 +22,7 @@
         <zonky.postgres.version>2.1.0</zonky.postgres.version>
         <zonky.binaries.version>16.4.0</zonky.binaries.version>
         <awaitility.version>4.3.0</awaitility.version>
+        <buildDir>target</buildDir>
     </properties>
 
     <dependencyManagement>
@@ -115,6 +116,7 @@
     </dependencies>
 
     <build>
+        <directory>${project.basedir}/${buildDir}</directory>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

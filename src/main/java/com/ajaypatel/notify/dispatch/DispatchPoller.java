@@ -52,8 +52,9 @@ public class DispatchPoller {
             try {
                 pools.submit(w.channel(), () -> worker.process(w.notificationId()));
             } catch (RejectedExecutionException e) {
-                // Capacity was checked before claiming; if a race still rejects, the lease reaper returns the row.
-                log.warn("Pool {} rejected {}; lease will expire and the row will be re-queued", w.channel(), w.notificationId());
+                // Capacity was checked before claiming; concurrent claimers can still over-subscribe a pool.
+                log.warn("Pool {} rejected {}; returning it to the queue", w.channel(), w.notificationId());
+                worker.releaseLease(w.notificationId(), "pool " + w.channel() + " saturated");
             }
         }
         claimedTotal.addAndGet(batch.size());
