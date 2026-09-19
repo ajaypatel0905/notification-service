@@ -21,6 +21,7 @@ public final class NotificationDtos {
      * Either {@code templateCode} + {@code variables} or raw {@code subject}/{@code body}.
      * {@code idempotencyKey} may also come from the {@code Idempotency-Key} header.
      */
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Provide exactly one of templateCode (+variables) or body. EMAIL needs a subject; SMS must not have one.")
     public record SendRequest(
             @NotNull Channel channel,
             @NotBlank @Size(max = 320) String recipient,

@@ -13,6 +13,8 @@ import com.ajaypatel.notify.notification.NotificationService.AcceptResult;
 import com.ajaypatel.notify.security.CurrentPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -54,7 +56,18 @@ public class NotificationController {
     @PostMapping
     @Operation(summary = "Send or schedule one notification",
             description = "Returns 202 when accepted, 200 with the original when the idempotency key was seen before.")
-    public ResponseEntity<NotificationResponse> send(@Valid @RequestBody SendRequest req,
+    public ResponseEntity<NotificationResponse> send(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = {
+                    @ExampleObject(name = "templated email", value = """
+                            {"channel":"EMAIL","recipient":"jane@example.com","templateCode":"welcome",
+                             "variables":{"company":"Acme","user":{"name":"Jane"},"plan":"Pro"},
+                             "idempotencyKey":"welcome-jane-1"}"""),
+                    @ExampleObject(name = "raw SMS", value = """
+                            {"channel":"SMS","recipient":"+919999999999","body":"Your code is 4821"}"""),
+                    @ExampleObject(name = "scheduled push", value = """
+                            {"channel":"PUSH","recipient":"device-token-1","subject":"Order shipped",
+                             "body":"Your order is on its way","scheduledAt":"2026-12-31T09:00:00Z","priority":5}""")}))
+            @Valid @RequestBody SendRequest req,
                                                      @Parameter(description = "Optional. Replaying the same key for a tenant returns the original notification with 200 instead of creating a new one. Can also be sent as the idempotencyKey body field.")
                                                      @RequestHeader(value = "Idempotency-Key", required = false) String idemHeader) {
         AcceptResult r = service.accept(tenant(), req, idemHeader);
