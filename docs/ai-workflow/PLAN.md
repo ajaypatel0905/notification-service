@@ -16,4 +16,4 @@ Chosen assignment: Multi-tenant Notification Service (of four options). Rational
 8. Tests: unit (renderer, backoff, token bucket, state machine) + integration on embedded Postgres
    (happy path, idempotency, retry, permanent failure, rate limit, fairness, no-duplicate claim,
    scheduled, cancel, suspended tenant, RBAC, tenant isolation, callback, lease expiry, inbox).
-9. Docs: README, ADRs, demo script, session log, video outline.
+9. Docs: README, ADRs, demo script, session log.

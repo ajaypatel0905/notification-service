@@ -289,7 +289,7 @@ src/main/java/com/ajaypatel/notify/
 src/main/resources/db/migration/V1__init.sql
 src/test/java/com/ajaypatel/notify/{unit,it,support}/
 docs/adr/            six architecture decision records
-docs/ai-workflow/    plan, decisions, session log, video outline
+docs/ai-workflow/    plan, decisions, session log
 docs/assignment/     the brief
 .claude/skills/      skills used by the AI sessions on this repo (see CLAUDE.md)
 scripts/demo.sh      end-to-end walkthrough with curl
@@ -300,5 +300,5 @@ scripts/demo.sh      end-to-end walkthrough with curl
 This repository was built with Claude Code as a pair. `CLAUDE.md` is the standing brief the agent reads
 every session; `.claude/skills/` holds the three skills used (`feature-with-tests`, `adr`, `smoke-run`);
 `docs/ai-workflow/` has the plan, the choice of assignment, a session log with the prompts that shaped the
-design, and the video outline. Design decisions, scope calls and the test plan were made by me and written
+design. Design decisions, scope calls and the test plan were made by me and written
 down first; the agent implemented against them, and every feature landed with its tests in the same commit.
