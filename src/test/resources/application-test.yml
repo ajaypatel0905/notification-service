@@ -1,0 +1,33 @@
+spring:
+  flyway:
+    clean-disabled: true
+notify:
+  security:
+    bootstrap-admin-key: test-admin-key-123456
+    callback-secret: test-callback-secret
+  dispatch:
+    poll-interval-ms: 50
+    claim-batch-per-tenant: 20
+    lease-duration: 10s
+    lease-reaper-interval-ms: 60000
+    schedule-promoter-interval-ms: 200
+    pools:
+      EMAIL: 8
+      SMS: 8
+      PUSH: 4
+      IN_APP: 4
+    queue-capacity-per-pool: 100
+  retry:
+    initial-backoff: 100ms
+    multiplier: 2.0
+    max-backoff: 2s
+  providers:
+    simulated:
+      latency-ms: 0
+      transient-failure-rate: 0.0
+      permanent-failure-rate: 0.0
+      auto-callback: false
+logging:
+  level:
+    com.ajaypatel.notify: INFO
+    org.hibernate.SQL: WARN

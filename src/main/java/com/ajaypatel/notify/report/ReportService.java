@@ -110,10 +110,14 @@ public class ReportService {
             return new LatencyStats(0, 0, 0, 0, 0);
         }
         Collections.sort(values);
-        long p50 = values.get((int) Math.floor(0.50 * (values.size() - 1)));
-        long p95 = values.get((int) Math.floor(0.95 * (values.size() - 1)));
+        long p50 = values.get(nearestRank(0.50, values.size()));
+        long p95 = values.get(nearestRank(0.95, values.size()));
         double avg = values.stream().mapToLong(Long::longValue).average().orElse(0);
         return new LatencyStats(values.size(), p50, p95, values.get(values.size() - 1), round(avg));
+    }
+
+    private static int nearestRank(double p, int n) {
+        return Math.min(n - 1, Math.max(0, (int) Math.ceil(p * n) - 1));
     }
 
     private static double round(double v) {
